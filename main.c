@@ -18,6 +18,7 @@ static struct option options[] = {
 	{"state-file", required_argument, NULL, 'f'},
 	{"user", no_argument, NULL, 1},
 	{"unit", required_argument, NULL, 'u'},
+	{"help", no_argument, NULL, 'h'},
 	{0},
 };
 
@@ -29,6 +30,7 @@ usage(void)
 	fprintf(stderr, "	-f --state-file=FILE\n");
 	fprintf(stderr, "	   --user\n");
 	fprintf(stderr, "	-u --unit=UNIT\n");
+	fprintf(stderr, "	-h --help\n");
 	exit(2);
 }
 
@@ -48,7 +50,7 @@ main(int argc, char **argv)
 	memset(&opts, 0, sizeof opts);
 	flags = SD_JOURNAL_LOCAL_ONLY|SD_JOURNAL_SYSTEM;
 	for(;;){
-		c = getopt_long(argc, argv, "f:u:", options, &optind);
+		c = getopt_long(argc, argv, "f:u:h", options, &optind);
 		if(c < 0)
 			break;
 		switch(c){
@@ -63,6 +65,8 @@ main(int argc, char **argv)
 		case 'u':
 			opts.unit = optarg;
 			break;
+		case 'h':
+			usage();
 		}
 	}
 
