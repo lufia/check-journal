@@ -7,18 +7,28 @@
 #include <fcntl.h>
 #include <systemd/sd-journal.h>
 
-extern char *journal(char *, int);
+typedef struct FilterOpts FilterOpts;
+struct FilterOpts {
+	char *unit;
+};
+
+extern char *journal(char *, int, FilterOpts *);
 
 static struct option options[] = {
-	{"user", no_argument, NULL, 1},
 	{"state-file", required_argument, NULL, 'f'},
+	{"user", no_argument, NULL, 1},
+	{"unit", required_argument, NULL, 'u'},
 	{0},
 };
 
 void
 usage(void)
 {
-	fprintf(stderr, "usage: check-journal\n");
+	fprintf(stderr, "usage: check-journal [options]\n");
+	fprintf(stderr, "options:\n");
+	fprintf(stderr, "	-f --state-file=FILE\n");
+	fprintf(stderr, "	   --user\n");
+	fprintf(stderr, "	-u --unit=UNIT\n");
 	exit(2);
 }
 
@@ -26,6 +36,7 @@ int
 main(int argc, char **argv)
 {
 	char *last, *next, *state;
+	FilterOpts opts;
 	int flags;
 	int optind;
 	int fd, c;
@@ -34,19 +45,23 @@ main(int argc, char **argv)
 
 	state = NULL;
 	optind = 0;
+	memset(&opts, 0, sizeof opts);
 	flags = SD_JOURNAL_LOCAL_ONLY|SD_JOURNAL_SYSTEM;
 	for(;;){
-		c = getopt_long(argc, argv, "f:", options, &optind);
+		c = getopt_long(argc, argv, "f:u:", options, &optind);
 		if(c < 0)
 			break;
 		switch(c){
 		default:
 			usage();
-		case 1:
-			flags = SD_JOURNAL_LOCAL_ONLY|SD_JOURNAL_CURRENT_USER;
-			break;
 		case 'f':
 			state = optarg;
+			break;
+		case 1: /* --user */
+			flags = SD_JOURNAL_LOCAL_ONLY|SD_JOURNAL_CURRENT_USER;
+			break;
+		case 'u':
+			opts.unit = optarg;
 			break;
 		}
 	}
@@ -70,7 +85,7 @@ main(int argc, char **argv)
 	}
 
 run:
-	next = journal(last, flags);
+	next = journal(last, flags, &opts);
 
 	if(state != NULL && next != NULL){
 		fd = creat(state, 0644);
@@ -89,23 +104,28 @@ run:
 }
 
 char *
-journal(char *pos, int flags)
+journal(char *last, int flags, FilterOpts *opts)
 {
 	sd_journal *j;
 	char *cursor;
 	int n;
+	char buf[1024];
 
 	if(sd_journal_open(&j, flags) < 0){
 		fprintf(stderr, "failed to open journal: %m\n");
 		exit(1);
 	}
 	sd_journal_set_data_threshold(j, 0); // set threshold to unlimited
-	if(pos != NULL){
-		if(!sd_journal_test_cursor(j, pos)){
+	if(opts->unit){
+		snprintf(buf, sizeof buf, "UNIT=%s", opts->unit);
+		sd_journal_add_match(j, buf, 0);
+	}
+	if(last != NULL){
+		if(!sd_journal_test_cursor(j, last)){
 			fprintf(stderr, "invalid cursor: %m\n");
 			exit(2);
 		}
-		if(sd_journal_seek_cursor(j, pos) < 0){
+		if(sd_journal_seek_cursor(j, last) < 0){
 			fprintf(stderr, "failed to seek to the cursor: %m\n");
 			exit(1);
 		}
