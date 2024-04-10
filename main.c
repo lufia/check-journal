@@ -201,8 +201,6 @@ journal(char *last, int flags, FilterOpts *opts)
 		char *s;
 		size_t len;
 
-		// journalctl --output=json-pretty するとみえる
-		// _SYSTEMD_UNIT あたりはオプションで与えられると便利
 		if(sd_journal_get_data(j, "MESSAGE", &s, &len) < 0){
 			fprintf(stderr, "failed to get data: %m\n");
 			exit(1);
