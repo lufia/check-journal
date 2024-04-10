@@ -10,7 +10,44 @@
 typedef struct FilterOpts FilterOpts;
 struct FilterOpts {
 	char *unit;
+	int prio;
 };
+
+static char *priorities[] = {
+	[0] = "emerg",
+	[1] = "alert",
+	[2] = "crit",
+	[3] = "err",
+	[4] = "warning",
+	[5] = "notice",
+	[6] = "info",
+	[7] = "debug",
+};
+
+#define nelem(a) (sizeof (a)/sizeof (a)[0])
+
+int
+getpriority(char *s)
+{
+	int n;
+	char *p, **bp, **ep;
+
+	p = NULL;
+	n = strtol(s, &p, 10);
+	if(*p == '\0'){
+		if(n < 0 || n >= nelem(priorities))
+			goto end;
+		return n;
+	}
+	ep = priorities + nelem(priorities);
+	for(bp = priorities; bp < ep; bp++)
+		if(strcmp(s, *bp) == 0)
+			return bp - priorities;
+
+end:
+	errno = ERANGE;
+	return -1;
+}
 
 extern char *journal(char *, int, FilterOpts *);
 
@@ -18,6 +55,7 @@ static struct option options[] = {
 	{"state-file", required_argument, NULL, 'f'},
 	{"user", no_argument, NULL, 1},
 	{"unit", required_argument, NULL, 'u'},
+	{"priority", required_argument, NULL, 'p'},
 	{"help", no_argument, NULL, 'h'},
 	{0},
 };
@@ -30,6 +68,7 @@ usage(void)
 	fprintf(stderr, "	-f --state-file=FILE\n");
 	fprintf(stderr, "	   --user\n");
 	fprintf(stderr, "	-u --unit=UNIT\n");
+	fprintf(stderr, "	-p --priority=PRIORITY\n");
 	fprintf(stderr, "	-h --help\n");
 	exit(2);
 }
@@ -48,9 +87,10 @@ main(int argc, char **argv)
 	state = NULL;
 	optind = 0;
 	memset(&opts, 0, sizeof opts);
+	opts.prio = -1;
 	flags = SD_JOURNAL_LOCAL_ONLY|SD_JOURNAL_SYSTEM;
 	for(;;){
-		c = getopt_long(argc, argv, "f:u:h", options, &optind);
+		c = getopt_long(argc, argv, "f:u:p:h", options, &optind);
 		if(c < 0)
 			break;
 		switch(c){
@@ -64,6 +104,13 @@ main(int argc, char **argv)
 			break;
 		case 'u':
 			opts.unit = optarg;
+			break;
+		case 'p':
+			opts.prio = getpriority(optarg);
+			if(opts.prio < 0){
+				fprintf(stderr, "invalid priority: %m\n");
+				exit(2);
+			}
 			break;
 		case 'h':
 			usage();
@@ -112,7 +159,7 @@ journal(char *last, int flags, FilterOpts *opts)
 {
 	sd_journal *j;
 	char *cursor;
-	int n;
+	int i, n;
 	char buf[1024], *prefix;
 
 	if(sd_journal_open(&j, flags) < 0){
@@ -123,6 +170,10 @@ journal(char *last, int flags, FilterOpts *opts)
 	if(opts->unit){
 		prefix = (flags&SD_JOURNAL_CURRENT_USER) ? "USER_" : "";
 		snprintf(buf, sizeof buf, "%sUNIT=%s", prefix, opts->unit);
+		sd_journal_add_match(j, buf, 0);
+	}
+	for(i = 0; i <= opts->prio; i++){
+		snprintf(buf, sizeof buf, "PRIORITY=%d", i);
 		sd_journal_add_match(j, buf, 0);
 	}
 	if(last != NULL){
