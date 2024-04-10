@@ -11,6 +11,7 @@ typedef struct FilterOpts FilterOpts;
 struct FilterOpts {
 	char *unit;
 	int priority;
+	int facility;
 };
 
 static char *priorities[] = {
@@ -24,10 +25,37 @@ static char *priorities[] = {
 	[7] = "debug",
 };
 
+static char *facilities[] = {
+	[0] = "kern",
+	[1] = "user",
+	[2] = "mail",
+	[3] = "daemon",
+	[4] = "auth",
+	[5] = "syslog",
+	[6] = "lpr",
+	[7] = "news",
+	[8] = "uucp",
+	[9] = "cron",
+	[10] = "authpriv",
+	[11] = "ftp",
+	/* 12 = NTP subsystem */
+	/* 13 = log audit */
+	/* 14 = log alert */
+	/* 15 = clock daemon (note 2) */
+	[16] = "local0",
+	[17] = "local1",
+	[18] = "local2",
+	[19] = "local3",
+	[20] = "local4",
+	[21] = "local5",
+	[22] = "local6",
+	[23] = "local7",
+};
+
 #define nelem(a) (sizeof (a)/sizeof (a)[0])
 
 int
-getpriority(char *s)
+getindex(char **a, int na, char *s)
 {
 	int n;
 	char *p, **bp, **ep;
@@ -35,18 +63,30 @@ getpriority(char *s)
 	p = NULL;
 	n = strtol(s, &p, 10);
 	if(*p == '\0'){
-		if(n < 0 || n >= nelem(priorities))
+		if(n < 0 || n >= na)
 			goto end;
 		return n;
 	}
-	ep = priorities + nelem(priorities);
-	for(bp = priorities; bp < ep; bp++)
-		if(strcmp(s, *bp) == 0)
-			return bp - priorities;
+	ep = a + na;
+	for(bp = a; bp < ep; bp++)
+		if(strcmp(*bp, s) == 0)
+			return bp - a;
 
 end:
 	errno = ERANGE;
 	return -1;
+}
+
+int
+getpriority(char *s)
+{
+	return getindex(priorities, nelem(priorities), s);
+}
+
+int
+getfacility(char *s)
+{
+	return getindex(facilities, nelem(facilities), s);
 }
 
 extern char *journal(char *, int, FilterOpts *);
@@ -56,6 +96,7 @@ static struct option options[] = {
 	{"user", no_argument, NULL, 1},
 	{"unit", required_argument, NULL, 'u'},
 	{"priority", required_argument, NULL, 'p'},
+	{"facility", required_argument, NULL, 2},
 	{"help", no_argument, NULL, 'h'},
 	{0},
 };
@@ -69,6 +110,7 @@ usage(void)
 	fprintf(stderr, "	   --user\n");
 	fprintf(stderr, "	-u --unit=UNIT\n");
 	fprintf(stderr, "	-p --priority=PRIORITY\n");
+	fprintf(stderr, "	   --facility=FACILITY\n");
 	fprintf(stderr, "	-h --help\n");
 	exit(2);
 }
@@ -88,6 +130,7 @@ main(int argc, char **argv)
 	optind = 0;
 	memset(&opts, 0, sizeof opts);
 	opts.priority = -1;
+	opts.facility = -1;
 	flags = SD_JOURNAL_LOCAL_ONLY|SD_JOURNAL_SYSTEM;
 	for(;;){
 		c = getopt_long(argc, argv, "f:u:p:h", options, &optind);
@@ -109,6 +152,13 @@ main(int argc, char **argv)
 			opts.priority = getpriority(optarg);
 			if(opts.priority < 0){
 				fprintf(stderr, "invalid priority: %m\n");
+				exit(2);
+			}
+			break;
+		case 2: /* --facility */
+			opts.facility = getfacility(optarg);
+			if(opts.facility < 0){
+				fprintf(stderr, "invalid facility: %m\n");
 				exit(2);
 			}
 			break;
@@ -177,6 +227,11 @@ journal(char *last, int flags, FilterOpts *opts)
 		snprintf(buf, sizeof buf, "PRIORITY=%d", i);
 		sd_journal_add_match(j, buf, 0);
 	}
+	if(opts->facility >= 0){
+		snprintf(buf, sizeof buf, "SYSLOG_FACILITY=%d", opts->facility);
+		sd_journal_add_match(j, buf, 0);
+	}
+
 	if(last != NULL){
 		if(!sd_journal_test_cursor(j, last)){
 			fprintf(stderr, "invalid cursor: %m\n");
