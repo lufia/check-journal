@@ -113,7 +113,7 @@ journal(char *last, int flags, FilterOpts *opts)
 	sd_journal *j;
 	char *cursor;
 	int n;
-	char buf[1024];
+	char buf[1024], *prefix;
 
 	if(sd_journal_open(&j, flags) < 0){
 		fprintf(stderr, "failed to open journal: %m\n");
@@ -121,7 +121,8 @@ journal(char *last, int flags, FilterOpts *opts)
 	}
 	sd_journal_set_data_threshold(j, 0); // set threshold to unlimited
 	if(opts->unit){
-		snprintf(buf, sizeof buf, "UNIT=%s", opts->unit);
+		prefix = (flags&SD_JOURNAL_CURRENT_USER) ? "USER_" : "";
+		snprintf(buf, sizeof buf, "%sUNIT=%s", prefix, opts->unit);
 		sd_journal_add_match(j, buf, 0);
 	}
 	if(last != NULL){
