@@ -10,7 +10,7 @@
 typedef struct FilterOpts FilterOpts;
 struct FilterOpts {
 	char *unit;
-	int prio;
+	int priority;
 };
 
 static char *priorities[] = {
@@ -87,7 +87,7 @@ main(int argc, char **argv)
 	state = NULL;
 	optind = 0;
 	memset(&opts, 0, sizeof opts);
-	opts.prio = -1;
+	opts.priority = -1;
 	flags = SD_JOURNAL_LOCAL_ONLY|SD_JOURNAL_SYSTEM;
 	for(;;){
 		c = getopt_long(argc, argv, "f:u:p:h", options, &optind);
@@ -106,8 +106,8 @@ main(int argc, char **argv)
 			opts.unit = optarg;
 			break;
 		case 'p':
-			opts.prio = getpriority(optarg);
-			if(opts.prio < 0){
+			opts.priority = getpriority(optarg);
+			if(opts.priority < 0){
 				fprintf(stderr, "invalid priority: %m\n");
 				exit(2);
 			}
@@ -167,12 +167,13 @@ journal(char *last, int flags, FilterOpts *opts)
 		exit(1);
 	}
 	sd_journal_set_data_threshold(j, 0); // set threshold to unlimited
+
 	if(opts->unit){
 		prefix = (flags&SD_JOURNAL_CURRENT_USER) ? "USER_" : "";
 		snprintf(buf, sizeof buf, "%sUNIT=%s", prefix, opts->unit);
 		sd_journal_add_match(j, buf, 0);
 	}
-	for(i = 0; i <= opts->prio; i++){
+	for(i = 0; i <= opts->priority; i++){
 		snprintf(buf, sizeof buf, "PRIORITY=%d", i);
 		sd_journal_add_match(j, buf, 0);
 	}
