@@ -106,12 +106,12 @@ usage(void)
 {
 	fprintf(stderr, "usage: check-journal [options]\n");
 	fprintf(stderr, "options:\n");
-	fprintf(stderr, "	-f --state-file=FILE\n");
-	fprintf(stderr, "	   --user\n");
-	fprintf(stderr, "	-u --unit=UNIT\n");
-	fprintf(stderr, "	-p --priority=PRIORITY\n");
-	fprintf(stderr, "	   --facility=FACILITY\n");
-	fprintf(stderr, "	-h --help\n");
+	fprintf(stderr, "\t-f --state-file=FILE\n");
+	fprintf(stderr, "\t   --user\n");
+	fprintf(stderr, "\t-u --unit=UNIT\n");
+	fprintf(stderr, "\t-p --priority=PRIORITY\n");
+	fprintf(stderr, "\t   --facility=FACILITY\n");
+	fprintf(stderr, "\t-h --help\n");
 	exit(2);
 }
 
