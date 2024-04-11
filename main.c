@@ -183,8 +183,7 @@ journal(char *last, FilterOpts *opts)
 			return NULL;
 		}
 	}
-	n = 0;
-	while((n=sd_journal_next(j)) > 0) {
+	for(i = 0; (n=sd_journal_next(j)) > 0; i++){
 		char *s;
 		size_t len;
 
@@ -198,6 +197,10 @@ journal(char *last, FilterOpts *opts)
 	if(n < 0){
 		fprintf(stderr, "failed to move next: %m\n");
 		exit(1);
+	}
+	if(i == 0){ // no data
+		sd_journal_close(j);
+		return NULL;
 	}
 
 	if(sd_journal_get_cursor(j, &cursor) < 0){
