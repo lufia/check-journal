@@ -24,8 +24,8 @@ static struct option options[] = {
 	{"priority", required_argument, NULL, 'p'},
 	{"facility", required_argument, NULL, 2},
 	{"regexp", required_argument, NULL, 'e'},
-/*
 	{"ignore-case", required_argument, NULL, 'i'},
+/*
 	{"invert-match", required_argument, NULL, 'v'},
 */
 	{"help", no_argument, NULL, 'h'},
@@ -43,6 +43,7 @@ usage(void)
 	fprintf(stderr, "\t-p --priority=PRIORITY\n");
 	fprintf(stderr, "\t   --facility=FACILITY\n");
 	fprintf(stderr, "\t-e --regexp=PATTERN\n");
+	fprintf(stderr, "\t-i --ignore-case\n");
 	fprintf(stderr, "\t-h --help\n");
 	exit(2);
 }
@@ -50,10 +51,11 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	char *last, *next, *state;
+	char *last, *next, *state, *pat;
 	FilterOpts opts;
 	int c, flags, optind, e;
 	regex_t pattern;
+	int rflags;
 	char buf[1024];
 
 	state = NULL;
@@ -61,9 +63,10 @@ main(int argc, char **argv)
 	memset(&opts, 0, sizeof opts);
 	opts.priority = -1;
 	opts.facility = -1;
+	rflags = REG_EXTENDED|REG_NOSUB;
 	flags = SD_JOURNAL_LOCAL_ONLY|SD_JOURNAL_SYSTEM;
 	for(;;){
-		c = getopt_long(argc, argv, "f:u:p:e:h", options, &optind);
+		c = getopt_long(argc, argv, "f:u:p:e:ih", options, &optind);
 		if(c < 0)
 			break;
 		switch(c){
@@ -93,18 +96,22 @@ main(int argc, char **argv)
 			}
 			break;
 		case 'e':
-			e = regcomp(&pattern, optarg, 0);
-			if(e != 0){
-				regerror(e, &pattern, buf, sizeof buf);
-				fprintf(stderr, "syntax error: %s\n", buf);
-				exit(2);
-			}
-			opts.pattern = &pattern;
+			pat = optarg;
+			break;
+		case 'i':
+			rflags |= REG_ICASE;
 			break;
 		case 'h':
 			usage();
 		}
 	}
+	e = regcomp(&pattern, pat, rflags);
+	if(e != 0){
+		regerror(e, &pattern, buf, sizeof buf);
+		fprintf(stderr, "syntax error: %s\n", buf);
+		exit(2);
+	}
+	opts.pattern = &pattern;
 
 	last = NULL;
 	if(state != NULL){

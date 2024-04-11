@@ -19,6 +19,7 @@ options:
   -p --priority=PRIORITY
      --facility=FACILITY
   -e --regexp=PATTERN
+  -i --ignore-case
   -h --help
 ```
 
