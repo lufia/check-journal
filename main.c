@@ -13,6 +13,7 @@ struct FilterOpts {
 	int facility;
 
 	regex_t *pattern;
+	regex_t *invert;
 };
 
 extern char *journal(char *last, FilterOpts *opts);
@@ -26,9 +27,7 @@ static struct option options[] = {
 	{"facility", required_argument, NULL, 2},
 	{"regexp", required_argument, NULL, 'e'},
 	{"ignore-case", required_argument, NULL, 'i'},
-/*
 	{"invert-match", required_argument, NULL, 'v'},
-*/
 	{"help", no_argument, NULL, 'h'},
 	{0},
 };
@@ -45,6 +44,7 @@ usage(void)
 	fprintf(stderr, "\t   --facility=FACILITY\n");
 	fprintf(stderr, "\t-e --regexp=PATTERN\n");
 	fprintf(stderr, "\t-i --ignore-case\n");
+	fprintf(stderr, "\t-v --invert-match=PATTERN\n");
 	fprintf(stderr, "\t-h --help\n");
 	exit(2);
 }
@@ -52,23 +52,26 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	char *last, *next, *state, *pat;
+	char *last, *next, *state;
+	char *pat, *invpat;
 	FilterOpts opts;
 	int c, optind, e;
-	regex_t pattern;
+	regex_t pattern, invert;
 	int rflags;
 	char buf[1024];
 
-	memset(&opts, 0, sizeof opts);
-	opts.flags = SD_JOURNAL_LOCAL_ONLY|SD_JOURNAL_SYSTEM;
-	opts.priority = -1;
-	opts.facility = -1;
+	opts = (FilterOpts){
+		.flags = SD_JOURNAL_LOCAL_ONLY|SD_JOURNAL_SYSTEM,
+		.priority = -1,
+		.facility = -1,
+	};
 	rflags = REG_EXTENDED|REG_NOSUB;
 	state = NULL;
 	pat = NULL;
+	invpat = NULL;
 	optind = 0;
 	for(;;){
-		c = getopt_long(argc, argv, "f:u:p:e:ih", options, &optind);
+		c = getopt_long(argc, argv, "f:u:p:e:iv:h", options, &optind);
 		if(c < 0)
 			break;
 		switch(c){
@@ -103,6 +106,9 @@ main(int argc, char **argv)
 		case 'i':
 			rflags |= REG_ICASE;
 			break;
+		case 'v':
+			invpat = optarg;
+			break;
 		case 'h':
 			usage();
 		}
@@ -115,6 +121,15 @@ main(int argc, char **argv)
 			exit(2);
 		}
 		opts.pattern = &pattern;
+	}
+	if(invpat != NULL){
+		e = regcomp(&invert, invpat, rflags);
+		if(e != 0){
+			regerror(e, &invert, buf, sizeof buf);
+			fprintf(stderr, "syntax error: %s\n", buf);
+			exit(2);
+		}
+		opts.invert = &invert;
 	}
 
 	last = NULL;
@@ -224,6 +239,16 @@ match(char *s, int n, FilterOpts *opts)
 		if(e == REG_NOMATCH)
 			return 0;
 		if(e != 0){
+			regerror(e, opts->pattern, buf, sizeof buf);
+			fprintf(stderr, "failed to match: %s\n", buf);
+			exit(1);
+		}
+	}
+	if(opts->invert != NULL){
+		e = regexec(opts->invert, buf, 0, NULL, 0);
+		if(e == 0)
+			return 0;
+		if(e != REG_NOMATCH){
 			regerror(e, opts->pattern, buf, sizeof buf);
 			fprintf(stderr, "failed to match: %s\n", buf);
 			exit(1);
