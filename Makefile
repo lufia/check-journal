@@ -2,6 +2,7 @@ TARG = check-journal
 
 OFILES=\
 	main.o\
+	name.o\
 	state.o\
 
 HFILES=\

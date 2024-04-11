@@ -1,9 +1,11 @@
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include "lib.h"
 
 int
 readstr(char *name, char **p)
@@ -32,6 +34,7 @@ readstr(char *name, char **p)
 fail:
 	close(fd);
 	free(*p);
+	return -1;
 }
 
 int
