@@ -52,7 +52,7 @@ static char *facilities[] = {
 	[23] = "local7",
 };
 
-#define nelem(a) (sizeof (a)/sizeof (a)[0])
+#define nelem(a) (sizeof(a) / sizeof(a)[0])
 
 int
 getindex(char **a, int na, char *s)
@@ -63,8 +63,10 @@ getindex(char **a, int na, char *s)
 	p = NULL;
 	n = strtol(s, &p, 10);
 	if(*p == '\0'){
-		if(n < 0 || n >= na)
-			goto end;
+		if(n < 0 || n >= na){
+			errno = ERANGE;
+			return -1;
+		}
 		return n;
 	}
 	ep = a + na;
@@ -72,8 +74,7 @@ getindex(char **a, int na, char *s)
 		if(strcmp(*bp, s) == 0)
 			return bp - a;
 
-end:
-	errno = ERANGE;
+	errno = EINVAL;
 	return -1;
 }
 
