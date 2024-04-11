@@ -26,7 +26,7 @@ static struct option options[] = {
 	{"priority", required_argument, NULL, 'p'},
 	{"facility", required_argument, NULL, 2},
 	{"regexp", required_argument, NULL, 'e'},
-	{"ignore-case", required_argument, NULL, 'i'},
+	{"ignore-case", no_argument, NULL, 'i'},
 	{"invert-match", required_argument, NULL, 'v'},
 	{"help", no_argument, NULL, 'h'},
 	{0},
