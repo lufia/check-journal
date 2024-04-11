@@ -65,6 +65,7 @@ main(int argc, char **argv)
 	opts.facility = -1;
 	rflags = REG_EXTENDED|REG_NOSUB;
 	state = NULL;
+	pat = NULL;
 	optind = 0;
 	for(;;){
 		c = getopt_long(argc, argv, "f:u:p:e:ih", options, &optind);
@@ -106,13 +107,15 @@ main(int argc, char **argv)
 			usage();
 		}
 	}
-	e = regcomp(&pattern, pat, rflags);
-	if(e != 0){
-		regerror(e, &pattern, buf, sizeof buf);
-		fprintf(stderr, "syntax error: %s\n", buf);
-		exit(2);
+	if(pat != NULL){
+		e = regcomp(&pattern, pat, rflags);
+		if(e != 0){
+			regerror(e, &pattern, buf, sizeof buf);
+			fprintf(stderr, "syntax error: %s\n", buf);
+			exit(2);
+		}
+		opts.pattern = &pattern;
 	}
-	opts.pattern = &pattern;
 
 	last = NULL;
 	if(state != NULL){
