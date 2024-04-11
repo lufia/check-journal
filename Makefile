@@ -19,8 +19,8 @@ check-journal: $(OFILES)
 
 .PHONY: clean
 clean:
-	rm -f $(OFILES)
+	$(RM) $(OFILES)
 
 .PHONY: nuke
 nuke:
-	rm -f $(OFILES) $(TARG)
+	$(RM) $(OFILES) $(TARG)
