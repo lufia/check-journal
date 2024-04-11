@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h>
+#include <regex.h>
 #include <systemd/sd-journal.h>
 #include "lib.h"
 
@@ -9,9 +10,12 @@ struct FilterOpts {
 	char *unit;
 	int priority;
 	int facility;
+
+	regex_t *pattern;
 };
 
 extern char *journal(char *last, int, FilterOpts *opts);
+extern int match(char *s, int n, FilterOpts *opts);
 
 static struct option options[] = {
 	{"state-file", required_argument, NULL, 'f'},
@@ -19,6 +23,11 @@ static struct option options[] = {
 	{"unit", required_argument, NULL, 'u'},
 	{"priority", required_argument, NULL, 'p'},
 	{"facility", required_argument, NULL, 2},
+	{"regexp", required_argument, NULL, 'e'},
+/*
+	{"ignore-case", required_argument, NULL, 'i'},
+	{"invert-match", required_argument, NULL, 'v'},
+*/
 	{"help", no_argument, NULL, 'h'},
 	{0},
 };
@@ -33,6 +42,7 @@ usage(void)
 	fprintf(stderr, "\t-u --unit=UNIT\n");
 	fprintf(stderr, "\t-p --priority=PRIORITY\n");
 	fprintf(stderr, "\t   --facility=FACILITY\n");
+	fprintf(stderr, "\t-e --regexp=PATTERN\n");
 	fprintf(stderr, "\t-h --help\n");
 	exit(2);
 }
@@ -42,9 +52,9 @@ main(int argc, char **argv)
 {
 	char *last, *next, *state;
 	FilterOpts opts;
-	int flags;
-	int optind;
-	int c;
+	int c, flags, optind, e;
+	regex_t pattern;
+	char buf[1024];
 
 	state = NULL;
 	optind = 0;
@@ -53,7 +63,7 @@ main(int argc, char **argv)
 	opts.facility = -1;
 	flags = SD_JOURNAL_LOCAL_ONLY|SD_JOURNAL_SYSTEM;
 	for(;;){
-		c = getopt_long(argc, argv, "f:u:p:h", options, &optind);
+		c = getopt_long(argc, argv, "f:u:p:e:h", options, &optind);
 		if(c < 0)
 			break;
 		switch(c){
@@ -81,6 +91,15 @@ main(int argc, char **argv)
 				fprintf(stderr, "invalid facility: %m\n");
 				exit(2);
 			}
+			break;
+		case 'e':
+			e = regcomp(&pattern, optarg, 0);
+			if(e != 0){
+				regerror(e, &pattern, buf, sizeof buf);
+				fprintf(stderr, "syntax error: %s\n", buf);
+				exit(2);
+			}
+			opts.pattern = &pattern;
 			break;
 		case 'h':
 			usage();
@@ -158,11 +177,12 @@ journal(char *last, int flags, FilterOpts *opts)
 		char *s;
 		size_t len;
 
-		if(sd_journal_get_data(j, "MESSAGE", &s, &len) < 0){
+		if(sd_journal_get_data(j, "MESSAGE", (void *)&s, &len) < 0){
 			fprintf(stderr, "failed to get data: %m\n");
 			exit(1);
 		}
-		printf("data = '%.*s'\n", len-8, s+8);
+		if(match(s, len, opts))
+			printf("%.*s\n", len-8, s+8);
 	}
 	if(n < 0){
 		fprintf(stderr, "failed to move next: %m\n");
@@ -175,4 +195,25 @@ journal(char *last, int flags, FilterOpts *opts)
 	}
 	sd_journal_close(j);
 	return cursor;
+}
+
+int
+match(char *s, int n, FilterOpts *opts)
+{
+	char buf[n+1];
+	int e;
+
+	memmove(buf, s, n);
+	buf[n] = '\0';
+	if(opts->pattern != NULL){
+		e = regexec(opts->pattern, buf, 0, NULL, 0);
+		if(e == REG_NOMATCH)
+			return 0;
+		if(e != 0){
+			regerror(e, opts->pattern, buf, sizeof buf);
+			fprintf(stderr, "failed to match: %s\n", buf);
+			exit(1);
+		}
+	}
+	return 1;
 }

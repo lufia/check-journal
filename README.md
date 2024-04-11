@@ -18,6 +18,7 @@ options:
   -u --unit=UNIT
   -p --priority=PRIORITY
      --facility=FACILITY
+  -e --regexp=PATTERN
   -h --help
 ```
 
