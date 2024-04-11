@@ -2,6 +2,10 @@ TARG = check-journal
 
 OFILES=\
 	main.o\
+	state.o\
+
+HFILES=\
+	lib.h\
 
 CFLAGS=-Wall
 LDFLAGS=-lsystemd
@@ -10,7 +14,7 @@ LDFLAGS=-lsystemd
 all: $(TARG)
 
 check-journal: $(OFILES)
-	$(LINK.o) -o $@ $<
+	$(LINK.o) -o $@ $^
 
 .PHONY: clean
 clean:

@@ -2,10 +2,8 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <errno.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <fcntl.h>
 #include <systemd/sd-journal.h>
+#include "lib.h"
 
 typedef struct FilterOpts FilterOpts;
 struct FilterOpts {
@@ -51,8 +49,6 @@ static char *facilities[] = {
 	[22] = "local6",
 	[23] = "local7",
 };
-
-#define nelem(a) (sizeof(a) / sizeof(a)[0])
 
 int
 getindex(char **a, int na, char *s)
@@ -123,9 +119,7 @@ main(int argc, char **argv)
 	FilterOpts opts;
 	int flags;
 	int optind;
-	int fd, c;
-	size_t nbuf;
-	char buf[1024];
+	int c;
 
 	state = NULL;
 	optind = 0;
@@ -170,34 +164,17 @@ main(int argc, char **argv)
 
 	last = NULL;
 	if(state != NULL){
-		fd = open(state, O_RDONLY);
-		if(fd < 0){
-			if(errno == ENOENT)
-				goto run;
-			fprintf(stderr, "failed to open '%s': %m\n", state);
+		if(readstr(state, &last) < 0){
+			fprintf(stderr, "failed to load cursor from %s: %m\n", state);
 			exit(1);
 		}
-		if((nbuf=read(fd, buf, sizeof buf)) < 0){
-			fprintf(stderr, "failed to read '%s': %m\n", state);
-			exit(1);
-		}
-		close(fd);
-		buf[nbuf] = '\0';
-		last = buf;
 	}
 
-run:
 	next = journal(last, flags, &opts);
 
 	if(state != NULL && next != NULL){
-		fd = creat(state, 0644);
-		if(fd < 0){
-			fprintf(stderr, "failed to create '%s': %m\n", state);
-			exit(1);
-		}
-		write(fd, next, strlen(next));
-		if(fsync(fd) < 0){
-			fprintf(stderr, "failed to sync to '%s': %m\n", state);
+		if(writestr(state, next) < 0){
+			fprintf(stderr, "failed to save cursor to %s: %m\n", state);
 			exit(1);
 		}
 	}
