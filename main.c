@@ -7,6 +7,7 @@
 
 typedef struct FilterOpts FilterOpts;
 struct FilterOpts {
+	int flags;
 	char *unit;
 	int priority;
 	int facility;
@@ -14,7 +15,7 @@ struct FilterOpts {
 	regex_t *pattern;
 };
 
-extern char *journal(char *last, int, FilterOpts *opts);
+extern char *journal(char *last, FilterOpts *opts);
 extern int match(char *s, int n, FilterOpts *opts);
 
 static struct option options[] = {
@@ -53,18 +54,18 @@ main(int argc, char **argv)
 {
 	char *last, *next, *state, *pat;
 	FilterOpts opts;
-	int c, flags, optind, e;
+	int c, optind, e;
 	regex_t pattern;
 	int rflags;
 	char buf[1024];
 
-	state = NULL;
-	optind = 0;
 	memset(&opts, 0, sizeof opts);
+	opts.flags = SD_JOURNAL_LOCAL_ONLY|SD_JOURNAL_SYSTEM;
 	opts.priority = -1;
 	opts.facility = -1;
 	rflags = REG_EXTENDED|REG_NOSUB;
-	flags = SD_JOURNAL_LOCAL_ONLY|SD_JOURNAL_SYSTEM;
+	state = NULL;
+	optind = 0;
 	for(;;){
 		c = getopt_long(argc, argv, "f:u:p:e:ih", options, &optind);
 		if(c < 0)
@@ -76,7 +77,7 @@ main(int argc, char **argv)
 			state = optarg;
 			break;
 		case 1: /* --user */
-			flags = SD_JOURNAL_LOCAL_ONLY|SD_JOURNAL_CURRENT_USER;
+			opts.flags = SD_JOURNAL_LOCAL_ONLY|SD_JOURNAL_CURRENT_USER;
 			break;
 		case 'u':
 			opts.unit = optarg;
@@ -120,7 +121,7 @@ main(int argc, char **argv)
 			exit(1);
 		}
 	}
-	next = journal(last, flags, &opts);
+	next = journal(last, &opts);
 	if(state != NULL && next != NULL){
 		if(writestr(state, next) < 0){
 			fprintf(stderr, "failed to save cursor to %s: %m\n", state);
@@ -132,21 +133,21 @@ main(int argc, char **argv)
 }
 
 char *
-journal(char *last, int flags, FilterOpts *opts)
+journal(char *last, FilterOpts *opts)
 {
 	sd_journal *j;
 	char *cursor;
 	int i, n;
 	char buf[1024], *prefix;
 
-	if(sd_journal_open(&j, flags) < 0){
+	if(sd_journal_open(&j, opts->flags) < 0){
 		fprintf(stderr, "failed to open journal: %m\n");
 		exit(1);
 	}
 	sd_journal_set_data_threshold(j, 0); // set threshold to unlimited
 
 	if(opts->unit){
-		prefix = (flags&SD_JOURNAL_CURRENT_USER) ? "USER_" : "";
+		prefix = (opts->flags&SD_JOURNAL_CURRENT_USER) ? "USER_" : "";
 		snprintf(buf, sizeof buf, "%sUNIT=%s", prefix, opts->unit);
 		sd_journal_add_match(j, buf, 0);
 	}
