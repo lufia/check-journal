@@ -1,6 +1,7 @@
 TARG = check-journal
 
 OFILES=\
+	exit.o\
 	main.o\
 	name.o\
 	state.o\

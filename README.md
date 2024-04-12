@@ -21,6 +21,7 @@ options:
   -e --regexp=PATTERN
   -i --ignore-case
   -v --invert-match=PATTERN
+     --check
   -h --help
 ```
 

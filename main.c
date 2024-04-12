@@ -16,6 +16,12 @@ struct FilterOpts {
 	regex_t *invert;
 };
 
+/*
+ * If threshold is zero or negative, check-journal runs as like grep(1).
+ * Otherwise check-journal behaves as Sensu plugin.
+ */
+int threshold;
+
 extern char *journal(char *last, FilterOpts *opts);
 extern int match(char *s, int n, FilterOpts *opts);
 
@@ -28,6 +34,7 @@ static struct option options[] = {
 	{"regexp", required_argument, NULL, 'e'},
 	{"ignore-case", no_argument, NULL, 'i'},
 	{"invert-match", required_argument, NULL, 'v'},
+	{"check", no_argument, NULL, 3},
 	{"help", no_argument, NULL, 'h'},
 	{0},
 };
@@ -45,8 +52,8 @@ usage(void)
 	fprintf(stderr, "\t-e --regexp=PATTERN\n");
 	fprintf(stderr, "\t-i --ignore-case\n");
 	fprintf(stderr, "\t-v --invert-match=PATTERN\n");
+	fprintf(stderr, "\t   --check\n");
 	fprintf(stderr, "\t-h --help\n");
-	exit(2);
 }
 
 int
@@ -77,6 +84,7 @@ main(int argc, char **argv)
 		switch(c){
 		default:
 			usage();
+			exitres(2, SENSU_UNKNOWN);
 		case 'f':
 			state = optarg;
 			break;
@@ -88,17 +96,13 @@ main(int argc, char **argv)
 			break;
 		case 'p':
 			opts.priority = getpriority(optarg);
-			if(opts.priority < 0){
-				fprintf(stderr, "invalid priority: %m\n");
-				exit(2);
-			}
+			if(opts.priority < 0)
+				fatal(2, "invalid priority: %m\n");
 			break;
 		case 2: /* --facility */
 			opts.facility = getfacility(optarg);
-			if(opts.facility < 0){
-				fprintf(stderr, "invalid facility: %m\n");
-				exit(2);
-			}
+			if(opts.facility < 0)
+				fatal(2, "invalid facility: %m\n");
 			break;
 		case 'e':
 			pat = optarg;
@@ -109,16 +113,19 @@ main(int argc, char **argv)
 		case 'v':
 			invpat = optarg;
 			break;
+		case 3: /* --check */
+			threshold = 1;
+			break;
 		case 'h':
 			usage();
+			exitres(0, SENSU_OK);
 		}
 	}
 	if(pat != NULL){
 		e = regcomp(&pattern, pat, rflags);
 		if(e != 0){
 			regerror(e, &pattern, buf, sizeof buf);
-			fprintf(stderr, "syntax error: %s\n", buf);
-			exit(2);
+			fatal(2, "syntax error: %s\n", buf);
 		}
 		opts.pattern = &pattern;
 	}
@@ -126,25 +133,20 @@ main(int argc, char **argv)
 		e = regcomp(&invert, invpat, rflags);
 		if(e != 0){
 			regerror(e, &invert, buf, sizeof buf);
-			fprintf(stderr, "syntax error: %s\n", buf);
-			exit(2);
+			fatal(2, "syntax error: %s\n", buf);
 		}
 		opts.invert = &invert;
 	}
 
 	last = NULL;
 	if(state != NULL){
-		if(readstr(state, &last) < 0){
-			fprintf(stderr, "failed to load cursor from %s: %m\n", state);
-			exit(1);
-		}
+		if(readstr(state, &last) < 0)
+			fatal(1, "failed to load cursor from %s: %m\n", state);
 	}
 	next = journal(last, &opts);
 	if(state != NULL && next != NULL){
-		if(writestr(state, next) < 0){
-			fprintf(stderr, "failed to save cursor to %s: %m\n", state);
-			exit(1);
-		}
+		if(writestr(state, next) < 0)
+			fatal(1, "failed to save cursor to %s: %m\n", state);
 	}
 	free(next);
 	return 0;
@@ -158,10 +160,8 @@ journal(char *last, FilterOpts *opts)
 	int i, n;
 	char buf[1024], *prefix;
 
-	if(sd_journal_open(&j, opts->flags) < 0){
-		fprintf(stderr, "failed to open journal: %m\n");
-		exit(1);
-	}
+	if(sd_journal_open(&j, opts->flags) < 0)
+		fatal(1, "failed to open journal: %m\n");
 	sd_journal_set_data_threshold(j, 0); // set threshold to unlimited
 
 	if(opts->unit){
@@ -179,20 +179,14 @@ journal(char *last, FilterOpts *opts)
 	}
 
 	if(last != NULL){
-		if(!sd_journal_test_cursor(j, last)){
-			fprintf(stderr, "invalid cursor: %m\n");
-			exit(2);
-		}
-		if(sd_journal_seek_cursor(j, last) < 0){
-			fprintf(stderr, "failed to seek to the cursor: %m\n");
-			exit(1);
-		}
+		if(!sd_journal_test_cursor(j, last))
+			fatal(2, "invalid cursor: %m\n");
+		if(sd_journal_seek_cursor(j, last) < 0)
+			fatal(1, "failed to seek to the cursor: %m\n");
 		// A position pointed with cursor has been read in previous operation.
 		n = sd_journal_next(j);
-		if(n < 0){
-			fprintf(stderr, "failed to move next: %m\n");
-			exit(1);
-		}
+		if(n < 0)
+			fatal(1, "failed to move next: %m\n");
 		if(n == 0){ // no more data
 			sd_journal_close(j);
 			return NULL;
@@ -202,26 +196,20 @@ journal(char *last, FilterOpts *opts)
 		char *s;
 		size_t len;
 
-		if(sd_journal_get_data(j, "MESSAGE", (void *)&s, &len) < 0){
-			fprintf(stderr, "failed to get data: %m\n");
-			exit(1);
-		}
+		if(sd_journal_get_data(j, "MESSAGE", (void *)&s, &len) < 0)
+			fatal(1, "failed to get data: %m\n");
 		if(match(s, len, opts))
 			printf("%.*s\n", len-8, s+8);
 	}
-	if(n < 0){
-		fprintf(stderr, "failed to move next: %m\n");
-		exit(1);
-	}
+	if(n < 0)
+		fatal(1, "failed to move next: %m\n");
 	if(i == 0){ // no data
 		sd_journal_close(j);
 		return NULL;
 	}
 
-	if(sd_journal_get_cursor(j, &cursor) < 0){
-		fprintf(stderr, "failed to get cursor: %m\n");
-		exit(1);
-	}
+	if(sd_journal_get_cursor(j, &cursor) < 0)
+		fatal(1, "failed to get cursor: %m\n");
 	sd_journal_close(j);
 	return cursor;
 }
@@ -240,8 +228,7 @@ match(char *s, int n, FilterOpts *opts)
 			return 0;
 		if(e != 0){
 			regerror(e, opts->pattern, buf, sizeof buf);
-			fprintf(stderr, "failed to match: %s\n", buf);
-			exit(1);
+			fatal(1, "failed to match: %s\n", buf);
 		}
 	}
 	if(opts->invert != NULL){
@@ -250,8 +237,7 @@ match(char *s, int n, FilterOpts *opts)
 			return 0;
 		if(e != REG_NOMATCH){
 			regerror(e, opts->pattern, buf, sizeof buf);
-			fprintf(stderr, "failed to match: %s\n", buf);
-			exit(1);
+			fatal(1, "failed to match: %s\n", buf);
 		}
 	}
 	return 1;
