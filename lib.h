@@ -1,5 +1,11 @@
 #define nelem(a) (sizeof(a) / sizeof(a)[0])
 
+typedef struct List List;
+struct List {
+	void *aux;
+	List *next;
+};
+
 enum {
 	SENSU_OK = 0,
 	SENSU_WARNING = 1,
@@ -18,6 +24,9 @@ extern void fatal(int status, char *fmt, ...);
 
 extern int readstr(char *name, char **p);
 extern int writestr(char *name, char *p);
+
+extern List *newlist(void *v);
+extern List *append(List *top, List *n);
 
 extern char *priorities[];
 extern char *facilities[];

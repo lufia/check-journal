@@ -10,7 +10,7 @@ struct FilterOpts {
 	int flags;
 	char *unit;
 	int priority;
-	int facility;
+	List *facilities;
 
 	regex_t *pattern;
 	regex_t *invert;
@@ -64,7 +64,7 @@ main(int argc, char **argv)
 	char *last, *next, *state;
 	char *pat, *invpat;
 	FilterOpts opts;
-	int c, optind, e;
+	int c, optind, e, facility;
 	regex_t pattern, invert;
 	int rflags;
 	char buf[1024];
@@ -73,7 +73,6 @@ main(int argc, char **argv)
 	opts = (FilterOpts){
 		.flags = SD_JOURNAL_LOCAL_ONLY|SD_JOURNAL_SYSTEM,
 		.priority = -1,
-		.facility = -1,
 	};
 	rflags = REG_EXTENDED|REG_NOSUB;
 	state = NULL;
@@ -103,9 +102,10 @@ main(int argc, char **argv)
 				fatal(2, "invalid priority '%s': %m\n", optarg);
 			break;
 		case 2: /* --facility */
-			opts.facility = getfacility(optarg);
-			if(opts.facility < 0)
+			facility = getfacility(optarg);
+			if(facility < 0)
 				fatal(2, "invalid facility '%s': %m\n", optarg);
+			opts.facilities = append(opts.facilities, newlist((void *)facility));
 			break;
 		case 'e':
 			pat = optarg;
@@ -169,6 +169,7 @@ journal(char *last, FilterOpts *opts, char **cursor)
 	sd_journal *j;
 	int i, n, nmatched;
 	char buf[1024], *prefix;
+	List *p;
 
 	if(sd_journal_open(&j, opts->flags) < 0)
 		fatal(1, "failed to open journal: %m\n");
@@ -183,8 +184,8 @@ journal(char *last, FilterOpts *opts, char **cursor)
 		snprintf(buf, sizeof buf, "PRIORITY=%d", i);
 		sd_journal_add_match(j, buf, 0);
 	}
-	if(opts->facility >= 0){
-		snprintf(buf, sizeof buf, "SYSLOG_FACILITY=%d", opts->facility);
+	for(p = opts->facilities; p != NULL; p = p->next){
+		snprintf(buf, sizeof buf, "SYSLOG_FACILITY=%d", (int)p->aux);
 		sd_journal_add_match(j, buf, 0);
 	}
 
