@@ -22,7 +22,7 @@ struct FilterOpts {
  */
 int threshold;
 
-extern char *journal(char *last, FilterOpts *opts);
+extern int journal(char *last, FilterOpts *opts, char **cursor);
 extern int match(char *s, int n, FilterOpts *opts);
 
 static struct option options[] = {
@@ -34,7 +34,7 @@ static struct option options[] = {
 	{"regexp", required_argument, NULL, 'e'},
 	{"ignore-case", no_argument, NULL, 'i'},
 	{"invert-match", required_argument, NULL, 'v'},
-	{"check", no_argument, NULL, 3},
+	{"check", optional_argument, NULL, 3},
 	{"help", no_argument, NULL, 'h'},
 	{0},
 };
@@ -52,7 +52,7 @@ usage(void)
 	fprintf(stderr, "\t-e --regexp=PATTERN\n");
 	fprintf(stderr, "\t-i --ignore-case\n");
 	fprintf(stderr, "\t-v --invert-match=PATTERN\n");
-	fprintf(stderr, "\t   --check\n");
+	fprintf(stderr, "\t   --check[=NUM]\n");
 	fprintf(stderr, "\t-h --help\n");
 }
 
@@ -97,12 +97,12 @@ main(int argc, char **argv)
 		case 'p':
 			opts.priority = getpriority(optarg);
 			if(opts.priority < 0)
-				fatal(2, "invalid priority: %m\n");
+				fatal(2, "invalid priority '%s': %m\n", optarg);
 			break;
 		case 2: /* --facility */
 			opts.facility = getfacility(optarg);
 			if(opts.facility < 0)
-				fatal(2, "invalid facility: %m\n");
+				fatal(2, "invalid facility '%s': %m\n", optarg);
 			break;
 		case 'e':
 			pat = optarg;
@@ -115,6 +115,10 @@ main(int argc, char **argv)
 			break;
 		case 3: /* --check */
 			threshold = 1;
+			if(optarg != NULL)
+				threshold = atoi(optarg);
+			if(threshold <= 0)
+				fatal(2, "invalid number '%s'\n", optarg);
 			break;
 		case 'h':
 			usage();
@@ -138,26 +142,29 @@ main(int argc, char **argv)
 		opts.invert = &invert;
 	}
 
-	last = NULL;
+	last = next = NULL;
 	if(state != NULL){
 		if(readstr(state, &last) < 0)
 			fatal(1, "failed to load cursor from %s: %m\n", state);
 	}
-	next = journal(last, &opts);
+	c = journal(last, &opts, &next);
 	if(state != NULL && next != NULL){
 		if(writestr(state, next) < 0)
 			fatal(1, "failed to save cursor to %s: %m\n", state);
 	}
 	free(next);
+	if(iscrit(c))
+		exitres(0, SENSU_CRIT);
+	else if(iswarn(c))
+		exitres(0, SENSU_WARNING);
 	return 0;
 }
 
-char *
-journal(char *last, FilterOpts *opts)
+int
+journal(char *last, FilterOpts *opts, char **cursor)
 {
 	sd_journal *j;
-	char *cursor;
-	int i, n;
+	int i, n, nmatched;
 	char buf[1024], *prefix;
 
 	if(sd_journal_open(&j, opts->flags) < 0)
@@ -189,29 +196,34 @@ journal(char *last, FilterOpts *opts)
 			fatal(1, "failed to move next: %m\n");
 		if(n == 0){ // no more data
 			sd_journal_close(j);
-			return NULL;
+			*cursor = NULL;
+			return 0;
 		}
 	}
+	nmatched = 0;
 	for(i = 0; (n=sd_journal_next(j)) > 0; i++){
 		char *s;
 		size_t len;
 
 		if(sd_journal_get_data(j, "MESSAGE", (void *)&s, &len) < 0)
 			fatal(1, "failed to get data: %m\n");
-		if(match(s, len, opts))
+		if(match(s, len, opts)){
 			printf("%.*s\n", len-8, s+8);
+			nmatched++;
+		}
 	}
 	if(n < 0)
 		fatal(1, "failed to move next: %m\n");
 	if(i == 0){ // no data
 		sd_journal_close(j);
-		return NULL;
+		*cursor = NULL;
+		return 0;
 	}
 
-	if(sd_journal_get_cursor(j, &cursor) < 0)
+	if(sd_journal_get_cursor(j, cursor) < 0)
 		fatal(1, "failed to get cursor: %m\n");
 	sd_journal_close(j);
-	return cursor;
+	return nmatched;
 }
 
 int

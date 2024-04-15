@@ -9,6 +9,9 @@ enum {
 
 extern int threshold;
 
+#define	iscrit(n)	(threshold > 0 && (n) >= threshold)
+#define	iswarn(n)	(threshold > 0 && (n) > 0 && (n) < threshold)
+
 extern void exitres(int status, int result);
 extern void fatal(int status, char *fmt, ...);
 
