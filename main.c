@@ -22,6 +22,8 @@ struct FilterOpts {
  */
 int threshold;
 
+char *argv0;
+
 extern int journal(char *last, FilterOpts *opts, char **cursor);
 extern int match(char *s, int n, FilterOpts *opts);
 
@@ -67,6 +69,7 @@ main(int argc, char **argv)
 	int rflags;
 	char buf[1024];
 
+	argv0 = argv[0];
 	opts = (FilterOpts){
 		.flags = SD_JOURNAL_LOCAL_ONLY|SD_JOURNAL_SYSTEM,
 		.priority = -1,

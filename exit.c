@@ -21,6 +21,8 @@ fatal(int status, char *fmt, ...)
 	if(threshold > 0)
 		fout = stdout;
 	va_start(arg, fmt);
+	if(argv0)
+		fprintf(fout, "%s: ", argv0);
 	vfprintf(fout, fmt, arg);
 	va_end(arg);
 	exitres(status, SENSU_UNKNOWN);
