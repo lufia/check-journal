@@ -211,7 +211,7 @@ journal(char *last, FilterOpts *opts, char **cursor)
 		if(sd_journal_get_data(j, "MESSAGE", (void *)&s, &len) < 0)
 			fatal(1, "failed to get data: %m\n");
 		if(match(s, len, opts)){
-			printf("%.*s\n", len-8, s+8);
+			printf("%.*s\n", (int)len-8, s+8);
 			nmatched++;
 		}
 	}
