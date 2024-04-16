@@ -7,9 +7,7 @@ newlist(void *v)
 {
 	List *p;
 
-	p = malloc(sizeof *p);
-	if(p == NULL)
-		fatal(1, "malloc: %m");
+	p = emalloc(sizeof *p);
 	memset(p, 0, sizeof *p);
 	p->aux = v;
 	return p;

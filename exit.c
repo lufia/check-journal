@@ -27,3 +27,14 @@ fatal(int status, char *fmt, ...)
 	va_end(arg);
 	exitres(status, SENSU_UNKNOWN);
 }
+
+void *
+emalloc(size_t n)
+{
+	void *p;
+
+	p = malloc(n);
+	if(p == NULL)
+		fatal(1, "malloc %zd: %m\n", n);
+	return p;
+}

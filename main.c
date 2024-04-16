@@ -6,6 +6,8 @@
 #include "lib.h"
 
 typedef struct FilterOpts FilterOpts;
+typedef struct Regexp Regexp;
+
 struct FilterOpts {
 	int flags;
 	char *unit;
@@ -14,6 +16,11 @@ struct FilterOpts {
 
 	regex_t *pattern;
 	regex_t *invert;
+};
+
+struct Regexp {
+	char *s;
+	regex_t r;
 };
 
 /*
@@ -62,23 +69,21 @@ int
 main(int argc, char **argv)
 {
 	char *last, *next, *state;
-	char *pat, *invpat;
 	FilterOpts opts;
-	int c, optind, e, facility;
-	regex_t pattern, invert;
+	int c, optind, facility;
+	Regexp pattern, invert;
 	int rflags;
-	char buf[1024];
 
 	argv0 = argv[0];
+	state = NULL;
 	opts = (FilterOpts){
 		.flags = SD_JOURNAL_LOCAL_ONLY|SD_JOURNAL_SYSTEM,
 		.priority = -1,
 	};
-	rflags = REG_EXTENDED|REG_NOSUB;
-	state = NULL;
-	pat = NULL;
-	invpat = NULL;
 	optind = 0;
+	memset(&pattern, 0, sizeof pattern);
+	memset(&invert, 0, sizeof invert);
+	rflags = REG_EXTENDED|REG_NOSUB;
 	for(;;){
 		c = getopt_long(argc, argv, "f:u:p:e:iv:h", options, &optind);
 		if(c < 0)
@@ -108,13 +113,13 @@ main(int argc, char **argv)
 			opts.facilities = append(opts.facilities, newlist((void *)facility));
 			break;
 		case 'e':
-			pat = optarg;
+			pattern.s = optarg;
 			break;
 		case 'i':
 			rflags |= REG_ICASE;
 			break;
 		case 'v':
-			invpat = optarg;
+			invert.s = optarg;
 			break;
 		case 3: /* --check */
 			threshold = 1;
@@ -128,21 +133,13 @@ main(int argc, char **argv)
 			exitres(0, SENSU_OK);
 		}
 	}
-	if(pat != NULL){
-		e = regcomp(&pattern, pat, rflags);
-		if(e != 0){
-			regerror(e, &pattern, buf, sizeof buf);
-			fatal(2, "syntax error: %s\n", buf);
-		}
-		opts.pattern = &pattern;
+	if(pattern.s != NULL){
+		eregcomp(&pattern.r, pattern.s, rflags);
+		opts.pattern = &pattern.r;
 	}
-	if(invpat != NULL){
-		e = regcomp(&invert, invpat, rflags);
-		if(e != 0){
-			regerror(e, &invert, buf, sizeof buf);
-			fatal(2, "syntax error: %s\n", buf);
-		}
-		opts.invert = &invert;
+	if(invert.s != NULL){
+		eregcomp(&invert.r, invert.s, rflags);
+		opts.invert = &invert.r;
 	}
 
 	last = next = NULL;
@@ -234,27 +231,16 @@ int
 match(char *s, int n, FilterOpts *opts)
 {
 	char buf[n+1];
-	int e;
 
 	memmove(buf, s, n);
 	buf[n] = '\0';
 	if(opts->pattern != NULL){
-		e = regexec(opts->pattern, buf, 0, NULL, 0);
-		if(e == REG_NOMATCH)
+		if(eregexec(opts->pattern, buf, 0) == REG_NOMATCH)
 			return 0;
-		if(e != 0){
-			regerror(e, opts->pattern, buf, sizeof buf);
-			fatal(1, "failed to match: %s\n", buf);
-		}
 	}
 	if(opts->invert != NULL){
-		e = regexec(opts->invert, buf, 0, NULL, 0);
-		if(e == 0)
+		if(eregexec(opts->invert, buf, 0) == 0)
 			return 0;
-		if(e != REG_NOMATCH){
-			regerror(e, opts->pattern, buf, sizeof buf);
-			fatal(1, "failed to match: %s\n", buf);
-		}
 	}
 	return 1;
 }

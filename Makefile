@@ -5,6 +5,7 @@ OFILES=\
 	list.o\
 	main.o\
 	name.o\
+	regexp.o\
 	state.o\
 
 HFILES=\

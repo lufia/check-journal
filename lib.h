@@ -1,3 +1,5 @@
+#include <regex.h>
+
 #define nelem(a) (sizeof(a) / sizeof(a)[0])
 
 typedef struct List List;
@@ -21,6 +23,7 @@ extern char *argv0;
 
 extern void exitres(int status, int result);
 extern void fatal(int status, char *fmt, ...);
+extern void *emalloc(size_t n);
 
 extern int readstr(char *name, char **p);
 extern int writestr(char *name, char *p);
@@ -33,3 +36,6 @@ extern char *facilities[];
 
 extern int getpriority(char *s);
 extern int getfacility(char *s);
+
+extern void eregcomp(regex_t *r, char *s, int cflags);
+extern int eregexec(regex_t *r, char *s, int rflags);
