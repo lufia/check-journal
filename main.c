@@ -123,7 +123,7 @@ main(int argc, char **argv)
 			break;
 		case 3: /* --check */
 			threshold = 1;
-			if(optarg != NULL)
+			if(optarg)
 				threshold = atoi(optarg);
 			if(threshold <= 0)
 				fatal(2, "invalid number '%s'\n", optarg);
@@ -133,22 +133,22 @@ main(int argc, char **argv)
 			exitres(0, SENSU_OK);
 		}
 	}
-	if(pattern.s != NULL){
+	if(pattern.s){
 		eregcomp(&pattern.r, pattern.s, rflags);
 		opts.pattern = &pattern.r;
 	}
-	if(invert.s != NULL){
+	if(invert.s){
 		eregcomp(&invert.r, invert.s, rflags);
 		opts.invert = &invert.r;
 	}
 
 	last = next = NULL;
-	if(state != NULL){
+	if(state){
 		if(readstr(state, &last) < 0)
 			fatal(1, "failed to load cursor from %s: %m\n", state);
 	}
 	c = journal(last, &opts, &next);
-	if(state != NULL && next != NULL){
+	if(state && next){
 		if(writestr(state, next) < 0)
 			fatal(1, "failed to save cursor to %s: %m\n", state);
 	}
@@ -181,12 +181,12 @@ journal(char *last, FilterOpts *opts, char **cursor)
 		snprintf(buf, sizeof buf, "PRIORITY=%d", i);
 		sd_journal_add_match(j, buf, 0);
 	}
-	for(p = opts->facilities; p != NULL; p = p->next){
+	for(p = opts->facilities; p; p = p->next){
 		snprintf(buf, sizeof buf, "SYSLOG_FACILITY=%d", (int)p->aux);
 		sd_journal_add_match(j, buf, 0);
 	}
 
-	if(last != NULL){
+	if(last){
 		if(!sd_journal_test_cursor(j, last))
 			fatal(2, "invalid cursor: %m\n");
 		if(sd_journal_seek_cursor(j, last) < 0)
@@ -234,11 +234,11 @@ match(char *s, int n, FilterOpts *opts)
 
 	memmove(buf, s, n);
 	buf[n] = '\0';
-	if(opts->pattern != NULL){
+	if(opts->pattern){
 		if(eregexec(opts->pattern, buf, 0) == REG_NOMATCH)
 			return 0;
 	}
-	if(opts->invert != NULL){
+	if(opts->invert){
 		if(eregexec(opts->invert, buf, 0) == 0)
 			return 0;
 	}

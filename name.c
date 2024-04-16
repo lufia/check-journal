@@ -58,7 +58,7 @@ getindex(char **a, int na, char *s)
 	}
 	ep = a + na;
 	for(bp = a; bp < ep; bp++)
-		if(*bp != NULL && strcmp(*bp, s) == 0)
+		if(*bp && strcmp(*bp, s) == 0)
 			return bp - a;
 
 	errno = EINVAL;

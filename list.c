@@ -20,7 +20,7 @@ append(List *top, List *n)
 
 	memset(&z, 0, sizeof z);
 	z.next = top;
-	for(p = &z; p->next != NULL; p = p->next)
+	for(p = &z; p->next; p = p->next)
 		;
 	p->next = n;
 	return z.next;
