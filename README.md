@@ -1,5 +1,14 @@
 # check-journal
 
+**check-journal** checks journals whether new logs are available, then reports them.
+It can filter logs with any of systemd unit, priority, syslog facility or regexp.
+
+There are two mode: *Standard* mode or *Sensu plugin* mode.
+It switches exclusive by whether `--check[=NUM]` option is passed or not.
+
+* **Standard**: behaves as like grep(1). Logs will be printed to standard output.
+* **Sensu plugin**: is almost same as Standard mode, except error reporting and exit status.
+
 ## Installation
 
 ```console
