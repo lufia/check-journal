@@ -1,13 +1,11 @@
 # check-journal
 
-**check-journal** checks journals whether new logs are available, then reports them.
-It can filter logs with any of systemd unit, priority, syslog facility or regexp.
+**check-journal** checks journals whether new logs are available, then reports them. It can filter logs with any of systemd unit, priority, syslog facility and/or regexp.
 
-There are two mode: *Standard* mode or *Sensu plugin* mode.
-It switches exclusive by whether `--check[=NUM]` option is passed or not.
+There are two mode: *Standard mode* or *Sensu plugin mode*. It switches exclusive by whether `--check[=NUM]` option is passed or not.
 
-* **Standard**: behaves as like grep(1). Logs will be printed to standard output.
-* **Sensu plugin**: is almost same as Standard mode, except error reporting and exit status.
+* *Standard mode*: behaves as like grep(1). Logs will be printed to standard output.
+* *Sensu plugin mode*: is almost same as Standard mode, except error reporting and exit status.
 
 ## Installation
 
@@ -33,6 +31,20 @@ options:
      --check[=NUM]
   -h --help
 ```
+
+*-f* option is passed, **check-journal** saves a last cursor position to FILE. Subsequent execution after first **check-journal** execution, they will use the cursor to skip until new available logs.
+
+*-u* option selects only logs belongs to UNIT.
+
+*-p* option selects logs by PRIORITY or higher.
+
+*--facility* option selects logs by FACILITY. If one or more *--facility* options, all FACILITYs combines with OR operator.
+
+*-e* option selects logs matched by PATTERN. If one or more *-e* options, all PATTERNs combines with AND operator.
+
+*-i* option indicates PATTERNs is case-insensitive.
+
+*-v* option selects logs matched NOT by PATTERN. If one or more *-v* options, all PATTERNs combines with OR operator.
 
 ### Priorities
 
