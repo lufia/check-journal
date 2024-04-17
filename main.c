@@ -6,7 +6,6 @@
 #include "lib.h"
 
 typedef struct FilterOpts FilterOpts;
-typedef struct Regexp Regexp;
 
 struct FilterOpts {
 	int flags;
@@ -14,13 +13,8 @@ struct FilterOpts {
 	int priority;
 	List *facilities;
 
-	regex_t *pattern;
-	regex_t *invert;
-};
-
-struct Regexp {
-	char *s;
-	regex_t r;
+	List *patterns;
+	List *inverts;
 };
 
 /*
@@ -32,6 +26,7 @@ int threshold;
 char *argv0;
 
 extern int journal(char *last, FilterOpts *opts, char **cursor);
+extern void compile(List *p, int cflags);
 extern int match(char *s, int n, FilterOpts *opts);
 
 static struct option options[] = {
@@ -70,9 +65,8 @@ main(int argc, char **argv)
 {
 	char *last, *next, *state;
 	FilterOpts opts;
-	int c, optind, facility;
-	Regexp pattern, invert;
-	int rflags;
+	Regexp *r;
+	int c, optind, facility, cflags;
 
 	argv0 = argv[0];
 	state = NULL;
@@ -81,9 +75,7 @@ main(int argc, char **argv)
 		.priority = -1,
 	};
 	optind = 0;
-	memset(&pattern, 0, sizeof pattern);
-	memset(&invert, 0, sizeof invert);
-	rflags = REG_EXTENDED|REG_NOSUB;
+	cflags = REG_EXTENDED|REG_NOSUB;
 	for(;;){
 		c = getopt_long(argc, argv, "f:u:p:e:iv:h", options, &optind);
 		if(c < 0)
@@ -113,13 +105,15 @@ main(int argc, char **argv)
 			opts.facilities = append(opts.facilities, newlist((void *)facility));
 			break;
 		case 'e':
-			pattern.s = optarg;
+			r = newregexp(optarg);
+			opts.patterns = append(opts.patterns, newlist(r));
 			break;
 		case 'i':
-			rflags |= REG_ICASE;
+			cflags |= REG_ICASE;
 			break;
 		case 'v':
-			invert.s = optarg;
+			r = newregexp(optarg);
+			opts.inverts = append(opts.inverts, newlist(r));
 			break;
 		case 3: /* --check */
 			threshold = 1;
@@ -133,14 +127,8 @@ main(int argc, char **argv)
 			exitres(0, SENSU_OK);
 		}
 	}
-	if(pattern.s){
-		eregcomp(&pattern.r, pattern.s, rflags);
-		opts.pattern = &pattern.r;
-	}
-	if(invert.s){
-		eregcomp(&invert.r, invert.s, rflags);
-		opts.invert = &invert.r;
-	}
+	compile(opts.patterns, cflags);
+	compile(opts.inverts, cflags);
 
 	last = next = NULL;
 	if(state){
@@ -158,6 +146,17 @@ main(int argc, char **argv)
 	else if(iswarn(c))
 		exitres(0, SENSU_WARNING);
 	return 0;
+}
+
+void
+compile(List *p, int cflags)
+{
+	Regexp *r;
+
+	for(; p; p = p->next){
+		r = (Regexp *)p->aux;
+		eregcomp(&r->r, r->s, cflags);
+	}
 }
 
 int
@@ -231,15 +230,19 @@ int
 match(char *s, int n, FilterOpts *opts)
 {
 	char buf[n+1];
+	List *p;
+	Regexp *r;
 
 	memmove(buf, s, n);
 	buf[n] = '\0';
-	if(opts->pattern){
-		if(eregexec(opts->pattern, buf, 0) == REG_NOMATCH)
+	for(p = opts->patterns; p; p = p->next){
+		r = (Regexp *)p->aux;
+		if(eregexec(&r->r, buf, 0) == REG_NOMATCH)
 			return 0;
 	}
-	if(opts->invert){
-		if(eregexec(opts->invert, buf, 0) == 0)
+	for(p = opts->inverts; p; p = p->next){
+		r = (Regexp *)p->aux;
+		if(eregexec(&r->r, buf, 0) == 0)
 			return 0;
 	}
 	return 1;

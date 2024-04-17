@@ -1,5 +1,6 @@
 #include <regex.h>
 #include <stddef.h>
+#include <memory.h>
 #include "lib.h"
 
 void
@@ -27,4 +28,15 @@ eregexec(regex_t *r, char *s, int rflags)
 		fatal(1, "failed to match: %s\n", buf);
 	}
 	return e;
+}
+
+Regexp *
+newregexp(char *s)
+{
+	Regexp *r;
+
+	r = emalloc(sizeof *r);
+	memset(r, 0, sizeof *r);
+	r->s = estrdup(s);
+	return r;
 }

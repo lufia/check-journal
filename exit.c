@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdarg.h>
 #include "lib.h"
 
@@ -37,4 +38,14 @@ emalloc(size_t n)
 	if(p == NULL)
 		fatal(1, "malloc %zd: %m\n", n);
 	return p;
+}
+
+char *
+estrdup(char *s)
+{
+	char *t;
+
+	t = emalloc(strlen(s)+1);
+	strcpy(t, s);
+	return t;
 }
