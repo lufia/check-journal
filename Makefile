@@ -12,13 +12,14 @@ HFILES=\
 	lib.h\
 
 CFLAGS=-Wall
-LDFLAGS=-lsystemd
+LDFLAGS=
+LDLIBS=-lsystemd
 
 .PHONY: all
 all: $(TARG)
 
 check-journal: $(OFILES)
-	$(LINK.o) -o $@ $^
+	$(LINK.o) $^ $(LDLIBS) -o $@
 
 .PHONY: clean
 clean:
