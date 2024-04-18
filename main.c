@@ -180,8 +180,13 @@ journal(char *last, FilterOpts *opts, char **cursor)
 	sd_journal_set_data_threshold(j, 0); // set threshold to unlimited
 
 	if(opts->unit){
+		/* generates `(_SYSTEMD_UNIT=<u> OR UNIT=<u>) AND ...` matches */
 		snprintf(buf, sizeof buf, "_SYSTEMD_UNIT=%s", opts->unit);
 		sd_journal_add_match(j, buf, 0);
+		sd_journal_add_disjunction(j);
+		snprintf(buf, sizeof buf, "UNIT=%s", opts->unit);
+		sd_journal_add_match(j, buf, 0);
+		sd_journal_add_conjunction(j);
 	}
 	/* TODO(lufia): add user-unit */
 	for(i = 0; i <= opts->priority; i++){
