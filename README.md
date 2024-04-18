@@ -49,6 +49,8 @@ options:
 
 *-q* option suppress outputs of matched logs.
 
+*--check* option indicates to behave as Sensu plugin mode. If selected logs by above options reached NUM times, default by 1, matched, **check-journal** exists as critical alert.
+
 ### Priorities
 
 * **0**, **emerg**
