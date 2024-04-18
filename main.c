@@ -25,6 +25,7 @@ struct FilterOpts {
 int threshold;
 
 char *argv0;
+int quiet;
 
 extern int journal(char *last, FilterOpts *opts, char **cursor);
 extern void compile(List *p, int cflags);
@@ -40,6 +41,7 @@ static struct option options[] = {
 	{"regexp", required_argument, NULL, 'e'},
 	{"ignore-case", no_argument, NULL, 'i'},
 	{"invert-match", required_argument, NULL, 'v'},
+	{"quiet", no_argument, NULL, 'q'},
 	{"check", optional_argument, NULL, 3},
 	{"help", no_argument, NULL, 'h'},
 	{0},
@@ -58,6 +60,7 @@ usage(void)
 	fprintf(stderr, "\t-e --regexp=PATTERN\n");
 	fprintf(stderr, "\t-i --ignore-case\n");
 	fprintf(stderr, "\t-v --invert-match=PATTERN\n");
+	fprintf(stderr, "\t-q --quiet\n");
 	fprintf(stderr, "\t   --check[=NUM]\n");
 	fprintf(stderr, "\t-h --help\n");
 }
@@ -79,7 +82,7 @@ main(int argc, char **argv)
 	optind = 0;
 	cflags = REG_EXTENDED|REG_NOSUB;
 	for(;;){
-		c = getopt_long(argc, argv, "f:u:p:e:iv:h", options, &optind);
+		c = getopt_long(argc, argv, "f:u:p:e:iv:qh", options, &optind);
 		if(c < 0)
 			break;
 		switch(c){
@@ -116,6 +119,9 @@ main(int argc, char **argv)
 		case 'v':
 			r = newregexp(optarg);
 			opts.inverts = append(opts.inverts, newlist(r));
+			break;
+		case 'q':
+			quiet = 1;
 			break;
 		case 3: /* --check */
 			threshold = 1;
@@ -207,13 +213,15 @@ journal(char *last, FilterOpts *opts, char **cursor)
 		char *s, *u;
 
 		s = getdata(j, "MESSAGE");
-		u = getdata(j, "_SYSTEMD_UNIT");
 		if(match(s, opts)){
-			printf("%s: %s\n", u, s);
+			if(!quiet){
+				u = getdata(j, "_SYSTEMD_UNIT");
+				printf("%s: %s\n", u ? u : "(null)", s);
+				free(u);
+			}
 			nmatched++;
 		}
 		free(s);
-		free(u);
 	}
 	if(n < 0)
 		fatal(1, "failed to move next: %m\n");

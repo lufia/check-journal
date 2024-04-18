@@ -28,6 +28,7 @@ options:
   -e --regexp=PATTERN
   -i --ignore-case
   -v --invert-match=PATTERN
+  -q --quiet
      --check[=NUM]
   -h --help
 ```
@@ -45,6 +46,8 @@ options:
 *-i* option indicates PATTERNs is case-insensitive.
 
 *-v* option selects logs matched NOT by PATTERN. If one or more *-v* options, all PATTERNs combines with OR operator.
+
+*-q* option suppress outputs of matched logs.
 
 ### Priorities
 
