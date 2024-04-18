@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <getopt.h>
 #include <regex.h>
 #include <systemd/sd-journal.h>
@@ -27,7 +28,8 @@ char *argv0;
 
 extern int journal(char *last, FilterOpts *opts, char **cursor);
 extern void compile(List *p, int cflags);
-extern int match(char *s, int n, FilterOpts *opts);
+extern char *getdata(sd_journal *j, char *name);
+extern int match(char *s, FilterOpts *opts);
 
 static struct option options[] = {
 	{"state-file", required_argument, NULL, 'f'},
@@ -164,7 +166,7 @@ journal(char *last, FilterOpts *opts, char **cursor)
 {
 	sd_journal *j;
 	int i, n, nmatched;
-	char buf[1024], *prefix;
+	char buf[1024];
 	List *p;
 
 	if(sd_journal_open(&j, opts->flags) < 0)
@@ -172,10 +174,10 @@ journal(char *last, FilterOpts *opts, char **cursor)
 	sd_journal_set_data_threshold(j, 0); // set threshold to unlimited
 
 	if(opts->unit){
-		prefix = (opts->flags&SD_JOURNAL_CURRENT_USER) ? "USER_" : "";
-		snprintf(buf, sizeof buf, "%sUNIT=%s", prefix, opts->unit);
+		snprintf(buf, sizeof buf, "_SYSTEMD_UNIT=%s", opts->unit);
 		sd_journal_add_match(j, buf, 0);
 	}
+	/* TODO(lufia): add user-unit */
 	for(i = 0; i <= opts->priority; i++){
 		snprintf(buf, sizeof buf, "PRIORITY=%d", i);
 		sd_journal_add_match(j, buf, 0);
@@ -202,15 +204,16 @@ journal(char *last, FilterOpts *opts, char **cursor)
 	}
 	nmatched = 0;
 	for(i = 0; (n=sd_journal_next(j)) > 0; i++){
-		char *s;
-		size_t len;
+		char *s, *u;
 
-		if(sd_journal_get_data(j, "MESSAGE", (void *)&s, &len) < 0)
-			fatal(1, "failed to get data: %m\n");
-		if(match(s, len, opts)){
-			printf("%.*s\n", (int)len-8, s+8);
+		s = getdata(j, "MESSAGE");
+		u = getdata(j, "_SYSTEMD_UNIT");
+		if(match(s, opts)){
+			printf("%s: %s\n", u, s);
 			nmatched++;
 		}
+		free(s);
+		free(u);
 	}
 	if(n < 0)
 		fatal(1, "failed to move next: %m\n");
@@ -226,23 +229,56 @@ journal(char *last, FilterOpts *opts, char **cursor)
 	return nmatched;
 }
 
-int
-match(char *s, int n, FilterOpts *opts)
+char *
+getdata(sd_journal *j, char *name)
 {
-	char buf[n+1];
+	/* see sd_journal_get_data(3) */
+	static char *errors[] = {
+		[EINVAL] = "One of the required parameters is NULL or invalid",
+		[ECHILD] = "The journal object was created in a different process, library or module instance",
+		[EADDRNOTAVAIL] = "The read pointer is not positioned at a valid entry",
+		[ENOENT] = "The current entry does not include the specified field",
+		[ENOMEM] = "Memory allocation failed",
+		[ENOBUFS] = "A compressed entry is too large",
+		[E2BIG] = "The data field is too large for this computer architecture",
+		[EPROTONOSUPPORT] = "The journal is compressed with an unsupported method or the journal uses an unsupported feature",
+		[EBADMSG] = "The journal is corrupted",
+		[EIO] = "An I/O error was reported by the kernel",
+	};
+	char *s, *t;
+	size_t n, len;
+	int e;
+
+	e = sd_journal_get_data(j, name, (void *)&s, &n);
+	if(e == -ENOENT)
+		return NULL;
+	if(e < 0){
+		e *= -1;
+		if(e >= 0 && e < nelem(errors) && errors[e])
+			fatal(1, "failed to get %s: %s\n", name, errors[e]);
+		fatal(1, "failed to get %s: code=%d\n", name, -e);
+	}
+	len = strlen(name) + 1; /* name + '=' */
+	t = emalloc(n-len+1);
+	memmove(t, s+len, n-len);
+	t[n-len] = '\0';
+	return t;
+}
+
+int
+match(char *s, FilterOpts *opts)
+{
 	List *p;
 	Regexp *r;
 
-	memmove(buf, s, n);
-	buf[n] = '\0';
 	for(p = opts->patterns; p; p = p->next){
 		r = (Regexp *)p->aux;
-		if(eregexec(&r->r, buf, 0) == REG_NOMATCH)
+		if(eregexec(&r->r, s, 0) == REG_NOMATCH)
 			return 0;
 	}
 	for(p = opts->inverts; p; p = p->next){
 		r = (Regexp *)p->aux;
-		if(eregexec(&r->r, buf, 0) == 0)
+		if(eregexec(&r->r, s, 0) == 0)
 			return 0;
 	}
 	return 1;
