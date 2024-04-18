@@ -1,0 +1,31 @@
+name: Release
+
+on:
+  push:
+    tags:
+    - v*
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: build artifacts
+      run: |
+        make
+        zip check-journal_linux_amd64.zip check-journal
+    - uses: actions/upload-artifact@v4
+      with:
+        name: artifacts
+        path: "*.zip"
+
+  deploy:
+    needs: build
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/download-artifact@v4
+    - name: release
+      run: |
+        gh release create --generate-notes "${{ github.ref_name }}" *.zip
