@@ -4,7 +4,7 @@
 
 There are two mode: *Standard mode* or *Sensu plugin mode*. It switches exclusive by whether `--check[=NUM]` option is passed or not.
 
-* *Standard mode*: behaves as like grep(1). Logs will be printed to standard output.
+* *Standard mode*: behaves as like **grep(1)**. Logs will be printed to standard output.
 * *Sensu plugin mode*: is almost same as Standard mode, except error reporting and exit status.
 
 ## Installation
@@ -33,25 +33,27 @@ options:
   -h --help
 ```
 
-*-f* option is passed, **check-journal** saves a last cursor position to FILE. Subsequent execution after first **check-journal** execution, they will use the cursor to skip until new available logs.
+*-f* option is passed, **check-journal** saves a last cursor position to *FILE*. Subsequent execution after first **check-journal** execution, they will use the cursor to skip until new available logs.
 
-*-u* option selects only logs belongs to UNIT.
+*-u* option selects only logs belongs to *UNIT*.
 
-*-p* option selects logs by PRIORITY or higher.
+*-p* option selects logs by *PRIORITY* or higher.
 
-*--facility* option selects logs by FACILITY. If one or more *--facility* options, all FACILITYs combines with OR operator.
+*--facility* option selects logs by *FACILITY*. If one or more *--facility* options, all *FACILITY*s combines with **OR** operator.
 
-*-e* option selects logs matched by PATTERN. If one or more *-e* options, all PATTERNs combines with AND operator.
+*-e* option selects logs matched by *PATTERN*. If one or more *-e* options, all *PATTERN*s combines with **AND** operator.
 
-*-i* option indicates PATTERNs are case-insensitive.
+*-i* option indicates *PATTERN*s are case-insensitive.
 
-*-v* option selects logs matched NOT by PATTERN. If one or more *-v* options, all PATTERNs combines with OR operator.
+*-v* option selects logs matched **NOT** by *PATTERN*. If one or more *-v* options, all *PATTERN*s combines with **OR** operator.
 
 *-q* option suppress outputs of selected logs.
 
 *--check* option indicates to behave as Sensu plugin mode. If selected logs by above options reached NUM times, default by 1, **check-journal** reports a critical alert.
 
 ### Priorities
+
+Currently, *PRIORITY* is one of:
 
 * **0**, **emerg**
 * **1**, **alert**
@@ -63,6 +65,8 @@ options:
 * **7**, **debug**
 
 ### Facilities
+
+*FACILITY* is one of:
 
 * **0**, **kern**
 * **1**, **user**
