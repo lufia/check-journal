@@ -7,7 +7,6 @@
 #include "lib.h"
 
 typedef struct FilterOpts FilterOpts;
-
 struct FilterOpts {
 	int flags;
 	char *unit;
@@ -27,10 +26,10 @@ int threshold;
 char *argv0;
 int quiet;
 
-extern int journal(char *last, FilterOpts *opts, char **cursor);
-extern void compile(List *p, int cflags);
-extern char *getdata(sd_journal *j, char *name);
-extern int match(char *s, FilterOpts *opts);
+static int journal(char *last, FilterOpts *opts, char **cursor);
+static void compile(List *p, int cflags);
+static char *getdata(sd_journal *j, char *name);
+static int match(char *s, FilterOpts *opts);
 
 static struct option options[] = {
 	{"state-file", required_argument, NULL, 'f'},
@@ -47,7 +46,7 @@ static struct option options[] = {
 	{0},
 };
 
-void
+static void
 usage(void)
 {
 	fprintf(stderr, "usage: check-journal [options]\n");
@@ -156,7 +155,7 @@ main(int argc, char **argv)
 	return 0;
 }
 
-void
+static void
 compile(List *p, int cflags)
 {
 	Regexp *r;
@@ -167,7 +166,7 @@ compile(List *p, int cflags)
 	}
 }
 
-int
+static int
 journal(char *last, FilterOpts *opts, char **cursor)
 {
 	sd_journal *j;
@@ -220,7 +219,9 @@ journal(char *last, FilterOpts *opts, char **cursor)
 		s = getdata(j, "MESSAGE");
 		if(match(s, opts)){
 			if(!quiet){
-				u = getdata(j, "_SYSTEMD_UNIT");
+				u = getdata(j, "UNIT");
+				if(u == NULL)
+					u = getdata(j, "_SYSTEMD_UNIT");
 				printf("%s: %s\n", u ? u : "(null)", s);
 				free(u);
 			}
@@ -242,7 +243,7 @@ journal(char *last, FilterOpts *opts, char **cursor)
 	return nmatched;
 }
 
-char *
+static char *
 getdata(sd_journal *j, char *name)
 {
 	/* see sd_journal_get_data(3) */
@@ -278,7 +279,7 @@ getdata(sd_journal *j, char *name)
 	return t;
 }
 
-int
+static int
 match(char *s, FilterOpts *opts)
 {
 	List *p;

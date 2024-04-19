@@ -1,4 +1,4 @@
-TARG = check-journal
+TARG=check-journal
 
 OFILES=\
 	exit.o\
@@ -18,7 +18,7 @@ LDLIBS=-lsystemd
 .PHONY: all
 all: $(TARG)
 
-check-journal: $(OFILES)
+$(TARG): $(OFILES)
 	$(LINK.o) $^ $(LDLIBS) -o $@
 
 .PHONY: clean

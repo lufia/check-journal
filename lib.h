@@ -24,6 +24,7 @@ enum {
 
 extern int threshold;
 extern char *argv0;
+extern int quiet;
 
 #define	iscrit(n)	(threshold > 0 && (n) >= threshold)
 #define	iswarn(n)	(threshold > 0 && (n) > 0 && (n) < threshold)
