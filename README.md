@@ -43,13 +43,13 @@ options:
 
 *-e* option selects logs matched by PATTERN. If one or more *-e* options, all PATTERNs combines with AND operator.
 
-*-i* option indicates PATTERNs is case-insensitive.
+*-i* option indicates PATTERNs are case-insensitive.
 
 *-v* option selects logs matched NOT by PATTERN. If one or more *-v* options, all PATTERNs combines with OR operator.
 
-*-q* option suppress outputs of matched logs.
+*-q* option suppress outputs of selected logs.
 
-*--check* option indicates to behave as Sensu plugin mode. If selected logs by above options reached NUM times, default by 1, matched, **check-journal** exists as critical alert.
+*--check* option indicates to behave as Sensu plugin mode. If selected logs by above options reached NUM times, default by 1, **check-journal** reports a critical alert.
 
 ### Priorities
 
