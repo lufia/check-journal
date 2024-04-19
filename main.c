@@ -290,10 +290,12 @@ match(char *s, FilterOpts *opts)
 		if(eregexec(&r->r, s, 0) == REG_NOMATCH)
 			return 0;
 	}
+	if(opts->inverts == NULL)
+		return 1;
 	for(p = opts->inverts; p; p = p->next){
 		r = (Regexp *)p->aux;
-		if(eregexec(&r->r, s, 0) == 0)
-			return 0;
+		if(eregexec(&r->r, s, 0) == REG_NOMATCH)
+			return 1;
 	}
-	return 1;
+	return 0;
 }

@@ -45,7 +45,7 @@ options:
 
 *-i* option indicates *PATTERN*s are case-insensitive.
 
-*-v* option selects logs matched **NOT** by *PATTERN*. If one or more *-v* options, all *PATTERN*s combines with **OR** operator.
+*-v* option selects logs matched **NOT** by *PATTERN*. If one or more *-v* options, all *PATTERN*s combines with **AND** operator.
 
 *-q* option suppress outputs of selected logs.
 
