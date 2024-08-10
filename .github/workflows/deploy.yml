@@ -8,17 +8,28 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - name: setup dependencies
       run: |
+        sudo dpkg --add-architecture arm64
+        sudo sed -i -E '/^deb ([^[])/s/ / [arch=amd64] /' /etc/apt/sources.list
+        echo 'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy main restricted' | sudo tee -a /etc/apt/sources.list.d/arm64.list
+        echo 'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-updates main restricted' | sudo tee -a /etc/apt/sources.list.d/arm64.list
         sudo apt-get update
-        sudo apt-get install -y libsystemd-dev
+        sudo apt-get install -y gcc-aarch64-linux-gnu
+        sudo apt-get install -y libsystemd-dev libsystemd-dev:arm64
     - uses: actions/checkout@v4
-    - name: build artifacts
+    - name: build artifacts (amd64)
       run: |
         make
         zip check-journal_linux_amd64.zip check-journal
+        make nuke
+    - name: build artifacts (arm64)
+      run: |
+        make CC=aarch64-linux-gnu-gcc
+        zip check-journal_linux_arm64.zip check-journal
+        make nuke
     - uses: actions/upload-artifact@v4
       with:
         name: artifacts
@@ -37,6 +48,7 @@ jobs:
         merge-multiple: true
     - name: release
       run: |
-        gh release upload "${{ github.ref_name }}" artifacts/*.zip
+        gh release upload "$TAG" artifacts/*.zip
       env:
+        TAG: ${{ github.ref_name }}
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
