@@ -10,12 +10,11 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
+    - uses: lufia/workflows/.github/actions/setup-multiarch@v0.5.0
+      with:
+        arch: arm64
     - name: setup dependencies
       run: |
-        sudo dpkg --add-architecture arm64
-        sudo sed -i -E '/^deb ([^[])/s/ / [arch=amd64] /' /etc/apt/sources.list
-        echo 'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy main restricted' | sudo tee -a /etc/apt/sources.list.d/arm64.list
-        echo 'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-updates main restricted' | sudo tee -a /etc/apt/sources.list.d/arm64.list
         sudo apt-get update
         sudo apt-get install -y gcc-aarch64-linux-gnu
         sudo apt-get install -y libsystemd-dev libsystemd-dev:arm64
