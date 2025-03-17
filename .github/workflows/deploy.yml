@@ -10,7 +10,7 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-    - uses: lufia/workflows/.github/actions/setup-multiarch@v0.6.0
+    - uses: lufia/workflows/.github/actions/setup-multiarch@v0.7.0
       with:
         arch: arm64
     - name: setup dependencies
