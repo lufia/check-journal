@@ -30,6 +30,7 @@ static int journal(char *last, FilterOpts *opts, char **cursor);
 static void compile(List *p, int cflags);
 static char *getdata(sd_journal *j, char *name);
 static int match(char *s, FilterOpts *opts);
+static char *errstr(int e);
 
 static struct option options[] = {
 	{"state-file", required_argument, NULL, 'f'},
@@ -170,12 +171,12 @@ static int
 journal(char *last, FilterOpts *opts, char **cursor)
 {
 	sd_journal *j;
-	int i, n, nmatched;
+	int i, e, nmatched;
 	char buf[1024];
 	List *p;
 
-	if(sd_journal_open(&j, opts->flags) < 0)
-		fatal(1, "failed to open journal: %m\n");
+	if((e=sd_journal_open(&j, opts->flags)) < 0)
+		fatal(1, "failed to open journal: %s\n", errstr(-e));
 	sd_journal_set_data_threshold(j, 0); // set threshold to unlimited
 
 	if(opts->unit){
@@ -198,22 +199,22 @@ journal(char *last, FilterOpts *opts, char **cursor)
 	}
 
 	if(last){
-		if(!sd_journal_test_cursor(j, last))
-			fatal(2, "invalid cursor: %m\n");
-		if(sd_journal_seek_cursor(j, last) < 0)
-			fatal(1, "failed to seek to the cursor: %m\n");
+		if((e=sd_journal_test_cursor(j, last)) < 0)
+			fatal(2, "invalid cursor: %s\n", errstr(-e));
+		if((e=sd_journal_seek_cursor(j, last)) < 0)
+			fatal(1, "failed to seek to the cursor: %s\n", errstr(-e));
 		// A position pointed with cursor has been read in previous operation.
-		n = sd_journal_next(j);
-		if(n < 0)
-			fatal(1, "failed to move next: %m\n");
-		if(n == 0){ // no more data
+		e = sd_journal_next(j);
+		if(e < 0)
+			fatal(1, "failed to move next: %s\n", errstr(-e));
+		if(e == 0){ // no more data
 			sd_journal_close(j);
 			*cursor = NULL;
 			return 0;
 		}
 	}
 	nmatched = 0;
-	for(i = 0; (n=sd_journal_next(j)) > 0; i++){
+	for(i = 0; (e=sd_journal_next(j)) > 0; i++){
 		char *s, *u;
 
 		s = getdata(j, "MESSAGE");
@@ -229,7 +230,7 @@ journal(char *last, FilterOpts *opts, char **cursor)
 		}
 		free(s);
 	}
-	if(n < 0)
+	if(e < 0)
 		fatal(1, "failed to move next: %m\n");
 	if(i == 0){ // no data
 		sd_journal_close(j);
@@ -237,8 +238,8 @@ journal(char *last, FilterOpts *opts, char **cursor)
 		return 0;
 	}
 
-	if(sd_journal_get_cursor(j, cursor) < 0)
-		fatal(1, "failed to get cursor: %m\n");
+	if((e=sd_journal_get_cursor(j, cursor)) < 0)
+		fatal(1, "failed to get cursor: %s\n", errstr(-e));
 	sd_journal_close(j);
 	return nmatched;
 }
@@ -246,19 +247,6 @@ journal(char *last, FilterOpts *opts, char **cursor)
 static char *
 getdata(sd_journal *j, char *name)
 {
-	/* see sd_journal_get_data(3) */
-	static char *errors[] = {
-		[EINVAL] = "One of the required parameters is NULL or invalid",
-		[ECHILD] = "The journal object was created in a different process, library or module instance",
-		[EADDRNOTAVAIL] = "The read pointer is not positioned at a valid entry",
-		[ENOENT] = "The current entry does not include the specified field",
-		[ENOMEM] = "Memory allocation failed",
-		[ENOBUFS] = "A compressed entry is too large",
-		[E2BIG] = "The data field is too large for this computer architecture",
-		[EPROTONOSUPPORT] = "The journal is compressed with an unsupported method or the journal uses an unsupported feature",
-		[EBADMSG] = "The journal is corrupted",
-		[EIO] = "An I/O error was reported by the kernel",
-	};
 	char *s, *t;
 	size_t n, len;
 	int e;
@@ -266,12 +254,8 @@ getdata(sd_journal *j, char *name)
 	e = sd_journal_get_data(j, name, (void *)&s, &n);
 	if(e == -ENOENT)
 		return NULL;
-	if(e < 0){
-		e *= -1;
-		if(e >= 0 && e < nelem(errors) && errors[e])
-			fatal(1, "failed to get %s: %s\n", name, errors[e]);
-		fatal(1, "failed to get %s: code=%d\n", name, -e);
-	}
+	if(e < 0)
+		fatal(1, "failed to get %s: %s\n", name, errstr(-e));
 	len = strlen(name) + 1; /* name + '=' */
 	t = emalloc(n-len+1);
 	memmove(t, s+len, n-len);
@@ -298,4 +282,29 @@ match(char *s, FilterOpts *opts)
 			return 1;
 	}
 	return 0;
+}
+
+/* errstr is not thread-safe */
+static char *
+errstr(int e)
+{
+	/* see sd_journal_get_data(3) */
+	static char *errors[] = {
+		[EINVAL] = "One of the required parameters is NULL or invalid",
+		[ECHILD] = "The journal object was created in a different process, library or module instance",
+		[EADDRNOTAVAIL] = "The read pointer is not positioned at a valid entry",
+		[ENOENT] = "The current entry does not include the specified field",
+		[ENOMEM] = "Memory allocation failed",
+		[ENOBUFS] = "A compressed entry is too large",
+		[E2BIG] = "The data field is too large for this computer architecture",
+		[EPROTONOSUPPORT] = "The journal is compressed with an unsupported method or the journal uses an unsupported feature",
+		[EBADMSG] = "The journal is corrupted",
+		[EIO] = "An I/O error was reported by the kernel",
+	};
+
+	if(e <= 0)
+		return NULL;
+	if(e >= nelem(errors) || errors[e] == NULL)
+		return strerror(e);
+	return errors[e];
 }
