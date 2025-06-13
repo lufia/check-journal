@@ -199,8 +199,6 @@ journal(char *last, FilterOpts *opts, char **cursor)
 	}
 
 	if(last){
-		if((e=sd_journal_test_cursor(j, last)) < 0)
-			fatal(2, "invalid cursor: %s\n", errstr(-e));
 		if((e=sd_journal_seek_cursor(j, last)) < 0)
 			fatal(1, "failed to seek to the cursor: %s\n", errstr(-e));
 		// A position pointed with cursor has been read in previous operation.
@@ -212,6 +210,8 @@ journal(char *last, FilterOpts *opts, char **cursor)
 			*cursor = NULL;
 			return 0;
 		}
+		if((e=sd_journal_test_cursor(j, last)) < 0)
+			fatal(1, "failed to test the cursor: %s\n", errstr(-e));
 	}
 	nmatched = 0;
 	for(i = 0; (e=sd_journal_next(j)) > 0; i++){
