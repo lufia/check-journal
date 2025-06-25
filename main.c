@@ -30,6 +30,7 @@ static int journal(char *last, FilterOpts *opts, char **cursor);
 static void compile(List *p, int cflags);
 static char *getdata(sd_journal *j, char *name);
 static int match(char *s, FilterOpts *opts);
+static int invertmatch(List *l, char *s);
 static char *errstr(int e);
 
 static struct option options[] = {
@@ -274,14 +275,21 @@ match(char *s, FilterOpts *opts)
 		if(eregexec(&r->r, s, 0) == REG_NOMATCH)
 			return 0;
 	}
-	if(opts->inverts == NULL)
-		return 1;
-	for(p = opts->inverts; p; p = p->next){
+	return invertmatch(opts->inverts, s);
+}
+
+static int
+invertmatch(List *l, char *s)
+{
+	List *p;
+	Regexp *r;
+
+	for(p = l; p; p = p->next){
 		r = (Regexp *)p->aux;
-		if(eregexec(&r->r, s, 0) == REG_NOMATCH)
-			return 1;
+		if(eregexec(&r->r, s, 0) == 0)
+			return 0;
 	}
-	return 0;
+	return 1;
 }
 
 /* errstr is not thread-safe */
