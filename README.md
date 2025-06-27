@@ -1,5 +1,8 @@
 # check-journal
 
+> [!NOTE]
+> If you want to use for [Mackerel](https://mackerel.io), we recommend to use [official distribution](https://github.com/mackerelio-labs/check-systemd-journal).
+
 **check-journal** checks journals whether new logs are available, then reports them. It can filter logs with any of systemd unit, priority, syslog facility and/or regexp.
 
 There are two mode: *Standard mode* or *Sensu plugin mode*. It switches exclusive by whether `--check[=NUM]` option is passed or not.
