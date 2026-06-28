@@ -1,7 +1,7 @@
 # check-journal
 
 > [!NOTE]
-> If you want to use for [Mackerel](https://mackerel.io), we recommend to use [official distribution](https://github.com/mackerelio-labs/check-systemd-journal).
+> If you want to use *check-journal* for [Mackerel](https://mackerel.io), we recommend to use [official distribution](https://github.com/mackerelio-labs/check-systemd-journal).
 
 **check-journal** checks journals whether new logs are available, then reports them. It can filter logs with any of systemd unit, priority, syslog facility and/or regexp.
 
