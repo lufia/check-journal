@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
-    - uses: lufia/workflows/.github/actions/setup-multiarch@bfc84184198b340bf1c34b2c695c2810a8e0897e # v0.11.1
+    - uses: lufia/workflows/.github/actions/setup-multiarch@87182a21e45d32572eea26d16b42baf1e5da0537 # v0.12.0
       with:
         arch: arm64
     - name: setup dependencies
@@ -28,7 +28,7 @@ jobs:
         make CC=aarch64-linux-gnu-gcc
         zip check-journal_linux_arm64.zip check-journal
         make nuke
-    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: artifacts
         path: "*.zip"
@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
         path: artifacts
         merge-multiple: true
